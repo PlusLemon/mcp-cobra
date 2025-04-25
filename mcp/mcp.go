@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -85,13 +84,8 @@ func (s *MCPServer) ServeStdio() error {
 
 func (s *MCPServer) handleToolCall(cmd *cobra.Command) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logger, err := NewFileLogger("/tmp/mcp.log")
-		if err == nil {
-			defer logger.Close()
-			logger.WriteLog(fmt.Sprintf("Invoking tool %s with parameters: %+v", cmd.Name(), request.Params.Arguments))
-		} else {
-			fmt.Fprintf(os.Stderr, "Cannot open log file: %v\n", err)
-		}
+		LogInfo(fmt.Sprintf("Invoking tool %s with parameters: %+v", cmd.Name(), request.Params.Arguments))
+
 		originalStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
@@ -115,28 +109,21 @@ func (s *MCPServer) handleToolCall(cmd *cobra.Command) func(ctx context.Context,
 			}
 		}
 
-		fmt.Printf("Executing command: %v\n", fullArgs)
+		LogInfo(fmt.Sprintf("Executing command: %v\n", fullArgs))
 		s.rootCmd.SetArgs(fullArgs)
 
-		// new a io.Writer and to string
-		// var outBuf bytes.Buffer
-		// s.rootCmd.SetOut(&outBuf)
-		err = s.rootCmd.Execute()
+		err := s.rootCmd.Execute()
 
 		w.Close()
 		var buf bytes.Buffer
 		io.Copy(&buf, r)
 		os.Stdout = originalStdout
 		if err != nil {
-			if logger != nil {
-				logger.WriteLog(fmt.Sprintf("Error executing command: %v", err))
-			}
+			LogInfo(fmt.Sprintf("Error executing command: %v", err))
 			return mcp.NewToolResultText(err.Error()), nil
 		}
 		capturedText := buf.String()
 		return mcp.NewToolResultText(capturedText), nil
-		// outText := outBuf.String()
-		// return mcp.NewToolResultText(fmt.Sprintf("Captured: %s\nOutput: %s", capturedText, outText)), nil
 	}
 }
 
@@ -170,26 +157,4 @@ func getAllFlagDefs(cmd *cobra.Command) map[string]*pflag.Flag {
 		flags[f.Name] = f
 	})
 	return flags
-}
-
-type FileLogger struct {
-	file   *os.File
-	logger *log.Logger
-}
-
-func NewFileLogger(path string) (*FileLogger, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o666)
-	if err != nil {
-		return nil, err
-	}
-	l := log.New(f, "", log.LstdFlags)
-	return &FileLogger{file: f, logger: l}, nil
-}
-
-func (fl *FileLogger) WriteLog(msg string) {
-	fl.logger.Println(msg)
-}
-
-func (fl *FileLogger) Close() error {
-	return fl.file.Close()
 }

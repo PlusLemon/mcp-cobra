@@ -3,15 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/PlusLemon/mcp-cobra/mcp"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	// originalStdout := os.Stdout
-	// r, w, _ := os.Pipe()
-	// os.Stdout = w
+	defer mcp.CloseGlobalLogger()
 
 	rootCmd := &cobra.Command{
 		Use:   "foo",
@@ -31,33 +31,22 @@ func main() {
 
 	rootCmd.AddCommand(greetCmd)
 
-	if len(os.Args) > 1 && os.Args[1] == "mcp-server" {
+	mcp.LogInfo(fmt.Sprintf("Starting foo CLI, args: %v", os.Args))
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "mcp-server" {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		mcpServer := mcp.NewMCPServer(rootCmd)
-		if err := mcpServer.ServeStdio(); err != nil {
-			fmt.Printf("MCP server error: %v\n", err)
-			os.Exit(1)
-		}
+		go func() {
+			if err := mcpServer.ServeStdio(); err != nil {
+				fmt.Printf("MCP server error: %v\n", err)
+				os.Exit(1)
+			}
+		}()
+		<-quit
 	} else {
 		if err := rootCmd.Execute(); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 	}
-
-	// fullArgs := []string{
-	// 	"greet",
-	// 	"--name", "fubang",
-	// }
-	// rootCmd.SetArgs(fullArgs)
-	// err := rootCmd.Execute()
-	// w.Close()
-	// var buf bytes.Buffer
-	// io.Copy(&buf, r)
-	// os.Stdout = originalStdout
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(1)
-	// }
-	// capturedText := buf.String()
-	// fmt.Println("捕获的输出: " + capturedText)
 }
