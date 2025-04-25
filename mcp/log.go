@@ -8,14 +8,14 @@ import (
 var globalLogger *FileLogger
 
 func init() {
-	globalLogger, _ = NewFileLogger("/tmp/mcp.log")
+	globalLogger, _ = NewFileLogger("/tmp/mcp-cobra.log")
 	if globalLogger == nil {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			log.Panicf("Failed to get user home directory: %v", err)
 			return
 		}
-		globalLogger, _ = NewFileLogger(homeDir + "/mcp.log")
+		globalLogger, _ = NewFileLogger(homeDir + "/mcp-cobra.log")
 		if globalLogger == nil {
 			log.Panicf("Failed to create log file")
 		}

@@ -26,6 +26,7 @@ func NewMCPServer(rootCmd *cobra.Command) *MCPServer {
 		server: server.NewMCPServer(rootCmd.Short, "1.0.0",
 			server.WithLogging(),
 			server.WithRecovery(),
+			server.WithResourceCapabilities(true, true),
 		),
 	}
 
@@ -71,7 +72,7 @@ func NewMCPServer(rootCmd *cobra.Command) *MCPServer {
 		}
 		tool := mcp.NewTool(toolName, toolOptions...)
 
-		fmt.Println("Adding tool:", toolName)
+		LogInfo(fmt.Sprintf("Registering tool %s with description: %s", toolName, toolDesc))
 		s.server.AddTool(tool, s.handleToolCall(leaf))
 	}
 
